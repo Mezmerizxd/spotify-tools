@@ -1,0 +1,21 @@
+{
+    "name": "spotify-tools",
+    "version": "1.0.0",
+    "description": "",
+    "author": "Rory Pearson (Mezmerizxd)",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/mezmerizxd/spotify-tools.git"
+    },
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "format": "npx prettier --write ."
+    },
+    "license": "ISC",
+    "dependencies": {
+        "dotenv": "^16.0.1",
+        "prettier": "^2.7.1",
+        "xhr2": "^0.2.1"
+    }
+}
