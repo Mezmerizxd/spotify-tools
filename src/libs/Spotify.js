@@ -1,10 +1,9 @@
 const xhr2 = require('xhr2');
 const fs = require('fs');
+const path = require('path');
 
 class Spotify {
     saveJson = false;
-    t_getAllPlaylists = null;
-    t_getAllTracks = null;
     userData = null;
     allPlaylistsData = null;
     playlistData = null;
@@ -25,7 +24,7 @@ class Spotify {
         );
         if (this.saveJson === true) {
             await fs.writeFileSync(
-                './user.json',
+                path.join(__dirname, '../../user.json'),
                 JSON.stringify(resp, null, 4)
             );
         } else {
@@ -40,37 +39,23 @@ class Spotify {
             'https://api.spotify.com/v1/me/playlists'
         );
         // loop through the playlists and get the tracks for each one
+        if (resp.items.length > 0) {
+            // Get playlist data
+            for (let i = 0; i < resp.items.length; i++) {
+                await this.GetSinglePlaylist(resp.items[i].id);
+            }
+            for (let i = 0; i < resp.items.length; i++) {
+                // Get Track data
+                await this.GetTracksFromPlaylist(resp.items[i].id);
+            }
+        }
         if (this.saveJson === true) {
-            // give it a thread to do the work in parallel
-            this.t_getAllPlaylists = setInterval(async () => {
-                if (resp.items.length > 0) {
-                    for (let i = 0; i < resp.items.length; i++) {
-                        await this.GetSinglePlaylist(resp.items[i].id);
-                    }
-                    clearInterval(this.t_getAllPlaylists);
-                } else {
-                    clearInterval(this.t_getAllPlaylists);
-                    this.t_getAllPlaylists = null;
-                }
-            }, 1000);
-            this.t_getAllTracks = setInterval(async () => {
-                if (resp.items.length > 0) {
-                    for (let i = 0; i < resp.items.length; i++) {
-                        await this.GetTracksFromPlaylist(resp.items[i].id);
-                    }
-                    clearInterval(this.t_getAllTracks);
-                } else {
-                    clearInterval(this.t_getAllTracks);
-                    this.t_getAllTracks = null;
-                }
-            }, 1000);
-            await fs.writeFileSync(
-                './playlists.json',
+            fs.writeFileSync(
+                path.join(__dirname, '../../playlists.json'),
                 JSON.stringify(resp, null, 4)
             );
-        } else {
-            this.allPlaylistsData = resp;
         }
+        this.allPlaylistsData = resp;
         return resp;
     }
 
@@ -79,27 +64,28 @@ class Spotify {
             'GET',
             'https://api.spotify.com/v1/playlists/' + playlistId
         );
-        if (this.saveJson === true) {
-            if (resp.tracks.items.length > 0) {
-                // make sure the playlists folder exists
-                if (!fs.existsSync('./playlists')) {
-                    fs.mkdirSync('./playlists');
-                }
-                // remove illegal characters from the playlist name
-                const playlistName = resp.name.replace(/[^a-zA-Z0-9]/g, '_');
-                // create a json file with the playlist data
-                if (!fs.existsSync(`./playlists/${playlistName}`)) {
-                    fs.mkdirSync(`./playlists/${playlistName}`);
-                }
-                await fs.writeFileSync(
-                    './playlists/' + playlistName + '/playlist.json',
-                    JSON.stringify(resp, null, 4)
-                );
+        // remove illegal characters from the playlist name
+        const playlistName = resp.name.replace(/[^a-zA-Z0-9]/g, '_');
+        if (resp.tracks.items.length > 0) {
+            // make sure the playlists folder exists
+            if (!fs.existsSync('./playlists')) {
+                fs.mkdirSync('./playlists');
             }
-        } else {
-            this.playlistData = resp;
+            // create a json file with the playlist data
+            if (!fs.existsSync(`./playlists/${playlistName}`)) {
+                fs.mkdirSync(`./playlists/${playlistName}`);
+            }
         }
-        // log success with the playlist name
+        if (this.saveJson === true) {
+            await fs.writeFileSync(
+                path.join(
+                    __dirname,
+                    '../../playlists/' + playlistName + '/playlist.json'
+                ),
+                JSON.stringify(resp, null, 4)
+            );
+        }
+        this.playlistData = resp;
         console.log(
             `\x1b[32mSuccessfully retrieved playlist ${resp.name}\x1b[0m`
         );
@@ -127,7 +113,6 @@ class Spotify {
             }
             // remove useless info from the response
             for (let i = 0; i < resp.items.length; i++) {
-                // delete available_markets
                 delete resp.items[i].track.available_markets;
                 delete resp.items[i].track.album.available_markets;
                 delete resp.items[i].track.artists.available_markets;
@@ -136,7 +121,10 @@ class Spotify {
         }
         if (this.saveJson === true) {
             await fs.writeFileSync(
-                './playlists/' + playlistName + '/tracks.json',
+                path.join(
+                    __dirname,
+                    '../../playlists/' + playlistName + '/tracks.json'
+                ),
                 JSON.stringify(retData, null, 4)
             );
         }
@@ -152,11 +140,9 @@ class Spotify {
         for (let i = 0; i < tracklist.length; i++) {
             let name = tracklist[i].name;
             let artists = '';
-            // artists
             for (let j = 0; j < tracklist[i].artists.length; j++) {
                 artists += `${tracklist[i].artists[j].name} `;
             }
-            // combine
             retData.push({ artists: artists, name: name });
         }
         return retData;
@@ -166,7 +152,10 @@ class Spotify {
         return new Promise((resolve, reject) => {
             const xhr = new xhr2();
             xhr.open(method, url, true);
-            xhr.setRequestHeader('Authorization', this.authentication);
+            xhr.setRequestHeader(
+                'Authorization',
+                process.env.SPOTIFY_AUTH_TOKEN
+            );
             xhr.onload = () => {
                 if (xhr.status === 200) {
                     resolve(JSON.parse(xhr.responseText));
@@ -183,7 +172,7 @@ class Spotify {
                 return data;
             })
             .catch((err) => {
-                console.log(`\x1b[31mError: Invalid Token\x1b[0m`);
+                console.log(`\x1b[31mError: ${err}\x1b[0m`);
             });
     }
 

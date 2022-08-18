@@ -1,19 +1,23 @@
 const xhr2 = require('xhr2');
 
 class YouTube {
+    constructor(authentication) {
+        this.authentication = authentication;
+    }
+
     async Search(title, max) {
-        const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=${max}&q=${title}&key=${process.env.YOUTUBE_API_KEY}`;
+        const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=${max}&q=${title}&key=${this.authentication}`;
         const resp = await this.FetchYouTube(url);
         return resp;
     }
 
     async GetVideoUrl(title) {
-        const resp = await this.Search(title, 1);
+        const formattedTitle = title.replace(/[^a-zA-Z0-9]/g, '');
+        const resp = await this.Search(formattedTitle, 1);
         const url = encodeURI(
             'https://www.youtube.com/watch?v=' + resp.items[0].id.videoId
         );
-        // async delay
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             setTimeout(() => {
                 resolve(url);
             }, 1000);

@@ -1,4 +1,5 @@
 node_modules/
 playlists/
 playlists.json
+user.json
 .env
